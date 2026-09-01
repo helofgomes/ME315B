@@ -1,0 +1,148 @@
+---
+title: "Lab03_Franco"
+author: "Heloisa Franco Gomes - 187932"
+format: 
+  html:
+    embed-resources: true
+editor: visual
+---
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.setenv(CHROMOTE_CHROME_ARGS = "--no-sandbox --disable-gpu")
+
+cat("Arquivo compilado em:", format(Sys.time(), "%d/%m/%Y às %H:%M:%S (%Z)"))
+```
+
+## Part 1
+
+```{r}
+library(tidyverse)
+
+
+
+airlines <- read_csv("airlines.csv")
+
+
+airports <- read_csv(
+  "airports.csv",
+  col_select = c(IATA_CODE, CITY, STATE, LATITUDE, LONGITUDE)
+)
+
+
+processa_bloco <- function(bloco, pos) {
+  bloco %>%
+  
+    filter(!is.na(DESTINATION_AIRPORT) & !is.na(ARRIVAL_DELAY)) %>%
+   
+    filter(!str_starts(DESTINATION_AIRPORT, "1")) %>%
+    
+    group_by(DESTINATION_AIRPORT) %>%
+    summarise(
+      soma_atraso = sum(ARRIVAL_DELAY),
+      n_voos = n(),
+      .groups = "drop"
+    )
+}
+
+processa_bloco <- function(bloco, pos) {
+  bloco %>%
+    filter(!is.na(DESTINATION_AIRPORT) & !is.na(ARRIVAL_DELAY)) %>%
+    filter(!str_starts(DESTINATION_AIRPORT, "1")) %>%
+    group_by(DESTINATION_AIRPORT) %>%
+    summarise(
+      soma_atraso = sum(ARRIVAL_DELAY),
+      n_voos = n(),
+      .groups = "drop"
+    )
+}
+
+
+estatisticas_bloco <- read_csv_chunked(
+  "flights.csv",
+  callback = DataFrameCallback$new(processa_bloco),
+  chunk_size = 1000000,
+  col_types = cols_only(
+    DESTINATION_AIRPORT = col_character(),
+    ARRIVAL_DELAY = col_double()
+  )
+)
+
+
+flights <- estatisticas_bloco %>%
+  group_by(DESTINATION_AIRPORT) %>%
+  summarise(
+    ARRIVAL_DELAY = sum(soma_atraso) / sum(n_voos),
+    .groups = "drop"
+  )
+```
+
+## Part 2
+
+```{r}
+
+aeroportos_ausentes <- flights %>%
+  anti_join(airports, by = c("DESTINATION_AIRPORT" = "IATA_CODE"))
+
+aeroportos_ausentes
+```
+
+```{r}
+flights %>%
+  left_join(airports, by = c("DESTINATION_AIRPORT" = "IATA_CODE"))
+```
+
+```{r}
+flights <- flights %>%
+  left_join(airports, by = c("DESTINATION_AIRPORT" = "IATA_CODE"))
+
+
+head(flights)
+```
+
+## Part 3
+
+```{r}
+
+aeroportos_por_estado <- airports %>%
+  count(STATE, name = "num_aeroportos", sort = TRUE)
+
+aeroportos_por_estado
+```
+
+```{r}
+airports %>%
+  group_by(STATE) %>%
+  summarise(num_aeroportos = n()) %>%
+  arrange(desc(num_aeroportos))
+```
+
+## Part 4
+
+```{r}
+library(leaflet)
+```
+
+```{r}
+
+this <- flights %>%
+  filter(!is.na(LATITUDE) & !is.na(LONGITUDE)) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addMarkers(
+    lng = ~LONGITUDE,
+    lat = ~LATITUDE,
+    popup = ~paste0(
+      "<b>Aeroporto:</b> ", DESTINATION_AIRPORT, "<br>",
+      "<b>Cidade/UF:</b> ", CITY, " - ", STATE, "<br>",
+      "<b>Atraso médio:</b> ", round(ARRIVAL_DELAY, 2), " min"
+    )
+  )
+
+# mapa
+this
+```
+
+```{r}
+library(webshot2)
+```
