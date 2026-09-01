@@ -1,0 +1,201 @@
+---
+title: "Lista 3"
+author: "Heloisa Franco Gomes - 187932"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(DBI)
+library(RSQLite)
+
+# Conecta/Cria o arquivo
+con <- dbConnect(RSQLite::SQLite(), "SQL4Statisticians-main/datasets/me315.sqlite")
+```
+#SQL
+```{sql connection=con}
+SELECT * FROM PRESERVE
+```
+
+```{sql connection=con}
+SELECT * FROM EMPLOYEE
+```
+1.  Exiba os valores de STATE e FEE da tabela PRESERVE mas sem duplicados.
+```{sql connection=con}
+SELECT DISTINCT STATE, FEE FROM PRESERVE
+```
+2.  Exiba todos os valores de DNO na tabela EMPLOYEE. Não exiba valores duplicados.
+```{sql connection=con}
+SELECT DISTINCT DNO FROM EMPLOYEE
+```
+
+3.  Execute as QUERYS a seguir. Examine as tabelas resultantes e faça as observações relevantes.
+SELECT DNO, SALARY FROM EMPLOYEE
+SELECT DISTINCT DNO, SALARY FROM EMPLOYEE
+SELECT DISTINCT DNO, SALARY FROM EMPLOYEE ORDER BY DNO, SALARY
+```{sql connection=con}
+-- Query 1
+SELECT DNO, SALARY FROM EMPLOYEE
+```
+
+```{sql connection=con}
+-- Query 2
+SELECT DISTINCT DNO, SALARY FROM EMPLOYEE
+```
+
+```{sql connection=con}
+-- Query 3
+SELECT DISTINCT DNO, SALARY FROM EMPLOYEE ORDER BY DNO, SALARY
+```
+Query 1 (SELECT DNO, SALARY): Mostra o departamento e o salário de todos os funcionários da tabela, sem tirar nada. Se tiver mais de uma pessoa do mesmo departamento ganhando o mesmo salário, a linha vai aparecer repetida. O resultado também vem sem nenhuma ordem definida.
+
+Query 2 (SELECT DISTINCT DNO, SALARY): O DISTINCT remove as linhas repetidas considerando as duas colunas juntas. Então, se duas pessoas do mesmo departamento tiverem o mesmo salário, essa combinação só aparece uma vez. Mas se os salários forem diferentes no mesmo departamento, as duas linhas continuam aparecendo.
+
+Query 3 (... ORDER BY DNO, SALARY): Faz a mesma coisa que a Query 2 (tira as repetições), mas agora organiza o resultado em ordem crescente. Ele ordena primeiro pelo número do departamento (DNO) e, dentro de cada departamento, ordena pelos valores de salário (SALARY).
+
+4.  Exiba todas as informações sobre qualquer reserva natural em Montana que seja menor que 1.000 acres.
+```{sql connection=con}
+SELECT * FROM PRESERVE WHERE STATE = 'MT' AND ACRES < 1000
+```
+
+5.  Exiba todas as informações sobre qualquer reserva natural cujo valor de ACRES esteja entre 1200 e 15000, inclusive.
+```{sql connection=con}
+SELECT * FROM PRESERVE WHERE ACRES BETWEEN 1200 AND 15000
+```
+
+6.  Exiba todas as informações sobre qualquer reserva natural localizada em Montana que não possua taxa de entrada e seja maior que 10.000 acres.
+```{sql connection=con}
+SELECT * FROM PRESERVE WHERE STATE = 'MT' AND FEE = 0 AND ACRES > 10000
+```
+
+7.  Exiba todas as informações sobre as reservas naturais localizadas em Montana ou Massachusetts.
+```{sql connection=con}
+SELECT * FROM PRESERVE WHERE STATE IN ('MT', 'MA')
+```
+
+8.  Exiba todas as informações sobre qualquer reserva natural localizada em Montana ou qualquer reserva que seja menor que 1.000 acres.
+```{sql connection=con}
+SELECT * FROM PRESERVE WHERE STATE = 'MT' OR ACRES < 1000
+```
+
+9.  Exiba o número e o nome de qualquer reserva natural que possua taxa de entrada que não seja igual a zero.
+```{sql connection=con}
+SELECT PNO, PNAME FROM PRESERVE 
+WHERE FEE <> 0
+```
+
+10. Exiba o número e o nome das reservas naturais que não possuem taxa de entrada de US$ 3,00 e não possuem taxa de US$ 10,00.
+```{sql connection=con}
+SELECT PNO, PNAME FROM PRESERVE 
+WHERE FEE <> 3.00 AND FEE <> 10.00
+```
+
+11. Exiba todas as informações sobre qualquer reserva natural localizada no Arizona que não possua taxa de entrada, ou qualquer reserva que seja menor que 100 acres (independentemente de seus valores de STATE e FEE).
+```{sql connection=con}
+SELECT * FROM PRESERVE 
+WHERE (STATE = 'AZ' AND FEE = 0) OR ACRES < 100
+```
+
+12. Exiba todas as informações sobre qualquer reserva natural que seja menor que 1.000 acres e tenha taxa de entrada de zero dólares ou esteja localizada no Arizona.
+```{sql connection=con}
+SELECT * FROM PRESERVE 
+WHERE ACRES < 1000 AND (FEE = 0 OR STATE = 'AZ')
+```
+
+13. Selecione todas as informações sobre qualquer reserva natural com taxa de entrada que não seja maior que zero, ou qualquer outra reserva, independentemente de sua taxa, que esteja localizada em Montana e seja maior que 1.000 acres.
+```{sql connection=con}
+SELECT * FROM PRESERVE 
+WHERE FEE <= 0 OR (STATE = 'MT' AND ACRES > 1000)
+```
+
+14. Exiba todas as informações sobre todas as reservas naturais, exceto aquelas reservas de Montana sem taxa de entrada.
+```{sql connection=con}
+SELECT * FROM PRESERVE 
+WHERE NOT (STATE = 'MT' AND FEE = 0)
+```
+
+15. As seguintes cláusulas WHERE são logicamente equivalentes?
+WHERE STATE = 'MA' AND (ACRES > 1000 OR FEE = 0.0)
+WHERE (STATE = 'MA' AND ACRES > 1000) OR (STATE = 'MA' AND FEE = 0.0)
+```{sql connection=con}
+-- 1
+SELECT * FROM PRESERVE 
+WHERE STATE = 'MA' AND (ACRES > 1000 OR FEE = 0.0)
+```
+```{sql connection=con}
+-- 2
+SELECT * FROM PRESERVE 
+WHERE (STATE = 'MA' AND ACRES > 1000) OR (STATE = 'MA' AND FEE = 0.0)
+```
+Sim, são logicamente equivalentes.A segunda consulta é apenas a aplicação da propriedade distributiva do AND sobre o OR:$$A \land (B \lor C) \iff (A \land B) \lor (A \land C)$$Por isso, ambas avaliam exatamente as mesmas condições e retornam o mesmo resultado.
+
+
+16. As seguintes cláusulas WHERE são logicamente equivalentes?
+WHERE STATE = 'MA' OR (ACRES > 1000 AND FEE = 0.0)
+WHERE (STATE = 'MA' OR ACRES > 1000) AND (STATE = 'MA' OR FEE = 0.0)
+```{sql connection=con}
+-- 1
+SELECT * FROM PRESERVE 
+WHERE STATE = 'MA' OR (ACRES > 1000 AND FEE = 0.0)
+```
+```{sql connection=con}
+-- 2
+SELECT * FROM PRESERVE 
+WHERE (STATE = 'MA' OR ACRES > 1000) AND (STATE = 'MA' OR FEE = 0.0)
+```
+Pela propriedade distributiva da disjunção (OR) sobre a conjunção (AND), temos que $A \lor (B \land C) \iff (A \lor B) \land (A \lor C)$.Portanto, sim, as duas cláusulas são logicamente equivalentes e retornarão exatamente o mesmo resultado.
+
+17. As seguintes cláusulas WHERE são logicamente equivalentes?
+WHERE NOT (ACRES < 50 AND STATE = 'MA')
+WHERE NOT ACRES < 50 AND NOT STATE = 'MA'
+WHERE ACRES >= 50 OR STATE <> 'MA'
+```{sql connection=con}
+--  1
+SELECT * FROM PRESERVE 
+WHERE NOT (ACRES < 50 AND STATE = 'MA')
+```
+```{sql connection=con}
+--  2
+SELECT * FROM PRESERVE 
+WHERE NOT ACRES < 50 AND NOT STATE = 'MA'
+```
+```{sql connection=con}
+--  3
+SELECT * FROM PRESERVE 
+WHERE ACRES >= 50 OR STATE <> 'MA'
+```
+Elas não são todas equivalentes entre si.
+A 1ª e a 3ª cláusula são logicamente equivalentes e retornam exatamente o mesmo resultado.
+A 2ª cláusula manteve o AND em vez de trocar por OR, tornando a condição muito mais restritiva e diferente das outras duas.
+
+18. As seguintes cláusulas WHERE são logicamente equivalentes?
+WHERE NOT (ACRES < 50 OR STATE = 'MA')
+WHERE NOT ACRES < 50 OR NOT STATE = 'MA'
+WHERE NOT ACRES < 50 AND NOT STATE = 'MA'
+```{sql connection=con}
+--  1
+SELECT * FROM PRESERVE 
+WHERE NOT (ACRES < 50 OR STATE = 'MA')
+```
+```{sql connection=con}
+--  2
+SELECT * FROM PRESERVE 
+WHERE NOT ACRES < 50 OR NOT STATE = 'MA'
+```
+```{sql connection=con}
+--  3
+SELECT * FROM PRESERVE 
+WHERE NOT ACRES < 50 AND NOT STATE = 'MA'
+```
+Elas não são todas equivalentes entre si.
+A 1ª e a 3ª cláusula são logicamente equivalentes e retornam exatamente o mesmo resultado.
+A 2ª cláusula manteve o operador OR, tornando a condição diferente e menos restritiva que as outras duas.
+
+```{r}
+dbDisconnect(con)
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
+
+
+
