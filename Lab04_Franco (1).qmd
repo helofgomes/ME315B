@@ -1,0 +1,116 @@
+---
+title: "Lab04_Franco"
+author: "Heloisa Franco Gomes - 187932"
+format: typst
+editor: visual
+---
+
+#### **Questão 1**
+
+```{r}
+library(readxl)
+library(tidyverse)
+```
+
+#### **Questão 2**
+
+```{r}
+fname <- "WDIEXCEL.xlsx"
+file.exists(fname)
+```
+
+#### **Questão 3**
+
+```{r}
+countries <- read_excel(fname, sheet = "Country")
+```
+
+#### **Questão 4**
+
+```{r}
+countries <- countries %>%
+  filter(`Country Code` %in% c("BRA", "ARG", "USA", "CHN", "IND"))
+countries
+```
+
+#### **Questão 5**
+O arquivo `WDI_Data.csv` original possui quase 400 mil linhas (referentes a todos os 
+países do mundo), o que excedia a memória disponível no ambiente do Posit Cloud e 
+causava falhas ao tentar processá-lo. Por esse motivo, o arquivo foi pré-filtrado via 
+terminal (comando `grep`), mantendo apenas as linhas referentes aos 5 países 
+selecionados na Questão 4, antes da leitura no R.
+```{r}
+WDI <- read_csv2("WDI_Data_filtrado.csv")
+```
+
+#### **Questão 6**
+
+```{r}
+WDI <- WDI %>% 
+  select(`Country Code`, `Indicator Code`, `1960`:`2025`)
+```
+
+#### **Questão 7**
+
+```{r}
+glimpse(WDI)
+```
+
+Dá pra ver que cada ano virou uma coluna, então não está tidy (o certo seria ter uma coluna só pra ano). Usei pivot_longer pra resolver isso.
+
+```{r}
+WDI <- WDI %>% 
+  pivot_longer(cols = `1960`:`2025`, names_to = "YEAR", values_to = "value")
+
+WDI
+```
+
+#### **Questão 8**
+
+```{r}
+class(WDI$YEAR)
+```
+
+É character mesmo, então é preciso converter pra integer.
+
+```{r}
+WDI <- WDI %>% 
+  mutate(YEAR = as.integer(YEAR))
+
+class(WDI$YEAR)
+```
+
+#### **Questão 9**
+
+A coluna Short Name está presente apenas no objeto countries, não em WDI. Portanto, não é suficiente apenas filtrar as linhas: é necessário trazer essa coluna para dentro de WDI por meio de um join. Como o objetivo é adicionar uma nova coluna (e não somente filtrar linhas), trata-se de um mutating join (inner_join), e não de um filtering join.
+
+O filtro dos países já havia sido aplicado na Q6, no momento da leitura dos dados, pois sem esse filtro o pivot_longer da Q7 ultrapassava a capacidade de memória disponível (o conjunto de dados original possui quase 400 mil linhas, referentes a todos os países do mundo).
+
+Antes do join, foi aplicado um pivot_wider para reorganizar os indicadores em colunas, permitindo selecionar diretamente a variável SP.DYN.CBRT.IN.
+
+```{r}
+WDI <- WDI %>% 
+  pivot_wider(names_from = `Indicator Code`, values_from = value) %>% 
+  inner_join(countries %>% select(`Country Code`, `Short Name`), by = "Country Code") %>% 
+  select(`Country Code`, `Short Name`, YEAR, SP.DYN.CBRT.IN)
+
+WDI
+```
+
+#### **Questão 10**
+
+```{r}
+WDI <- WDI %>% 
+  arrange(`Country Code`, YEAR)
+```
+
+#### **Questão 11**
+
+```{r}
+WDI %>% 
+  filter(!is.na(SP.DYN.CBRT.IN)) %>% 
+  ggplot(aes(x = YEAR, y = SP.DYN.CBRT.IN, color = `Short Name`)) +
+  geom_line() +
+  labs(x = "Ano", y = "Taxa de natalidade (SP.DYN.CBRT.IN)", color = "País",
+       title = "Taxa de natalidade ao longo do tempo")
+```
