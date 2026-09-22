@@ -1,0 +1,85 @@
+---
+title: "Lab06_Franco"
+author: "Heloisa Franco Gomes - 187932"
+format: typst
+editor: visual
+---
+
+#### **ITEM 1**
+
+```{r}
+path <- "."
+fname <- file.path(path, "disco.db")
+fname
+```
+
+#### **ITEM 2**
+```{r}
+library(DBI)
+library(RSQLite)
+
+file.exists("disco.db")
+
+con <- dbConnect(RSQLite::SQLite(), fname)
+con
+```
+
+#### **ITEM 3**
+```{r}
+dbListTables(con)
+```
+
+#### **ITEM 4**
+```{r}
+dbListFields(con, "Customer")
+```
+
+#### **ITEM 5**
+```{r}
+dbGetQuery(con, "SELECT COUNT(*) FROM Customer")
+```
+
+#### **ITEM 6**
+```{r}
+dbGetQuery(con, "SELECT COUNT(DISTINCT Country) FROM Customer")
+```
+
+#### **ITEM 7**
+```{r}
+dbGetQuery(con, "SELECT Country, COUNT(CustomerId) AS Quantidade
+                  FROM Customer
+                  GROUP BY Country
+                  ORDER BY Quantidade DESC")
+```
+
+#### **ITEM 8**
+```{r}
+dbGetQuery(con, "SELECT Country, COUNT(CustomerId) AS Quantidade
+                  FROM Customer
+                  GROUP BY Country
+                  ORDER BY Quantidade DESC
+                  LIMIT 5")
+```
+
+#### **ITEM 9**
+```{r}
+dbGetQuery(con, "SELECT DISTINCT Country FROM Customer WHERE LENGTH(Country) = 6")
+```
+
+#### **ITEM 10**
+```{r}
+dbGetQuery(con, "SELECT DISTINCT Track.Name AS Musica
+                  FROM Track
+                  INNER JOIN InvoiceLine ON Track.TrackId = InvoiceLine.TrackId
+                  INNER JOIN Invoice ON InvoiceLine.InvoiceId = Invoice.InvoiceId
+                  INNER JOIN Customer ON Invoice.CustomerId = Customer.CustomerId
+                  WHERE Customer.Country = 'Brazil'")
+```
+
+#### **ITEM 11**
+```{r}
+dbDisconnect(con)
+```
+
+
+
