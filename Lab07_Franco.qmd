@@ -1,0 +1,151 @@
+---
+title: "Lab07_Franco"
+author: "Heloisa Franco Gomes - 187932"
+format: typst
+editor: visual
+---
+
+#### **ITEM 1**
+
+```{r}
+library(RSQLite)
+
+conn <- dbConnect(SQLite(), "database.sqlite3")
+
+# nomes de tabelas e colunas 
+dbListTables(conn)
+dbListFields(conn, "sections")
+dbListFields(conn, "course_offerings")
+dbListFields(conn, "grade_distributions")
+dbListFields(conn, "subject_memberships")
+dbListFields(conn, "teachings")
+dbListFields(conn, "instructors")
+dbListFields(conn, "courses")
+dbListFields(conn, "subjects")
+```
+
+#### **ITEM 2**
+
+```{r}
+query_profs <- "
+SELECT DISTINCT i.id AS instructor_id, i.name AS instructor_name
+FROM subjects s
+INNER JOIN subject_memberships sm ON s.code = sm.subject_code
+INNER JOIN course_offerings co    ON sm.course_offering_uuid = co.uuid
+INNER JOIN sections se            ON se.course_offering_uuid = co.uuid
+INNER JOIN teachings t            ON t.section_uuid = se.uuid
+INNER JOIN instructors i          ON i.id = t.instructor_id
+WHERE s.abbreviation = 'STAT'
+"
+
+profs_stat <- dbGetQuery(conn, query_profs)
+
+profs_stat        
+nrow(profs_stat)  
+```
+
+#### **ITEM 3**
+
+##### 3.1
+```{r}
+query_gpa_prof <- "
+SELECT i.id AS instructor_id, i.name AS instructor_name,
+       gd.a_count, gd.ab_count, gd.b_count, gd.bc_count,
+       gd.c_count, gd.d_count, gd.f_count
+FROM grade_distributions gd
+INNER JOIN sections se            ON gd.course_offering_uuid = se.course_offering_uuid
+                                   AND gd.section_number = se.number
+INNER JOIN teachings t            ON t.section_uuid = se.uuid
+INNER JOIN instructors i          ON i.id = t.instructor_id
+INNER JOIN course_offerings co    ON co.uuid = se.course_offering_uuid
+INNER JOIN subject_memberships sm ON sm.course_offering_uuid = co.uuid
+INNER JOIN subjects s             ON s.code = sm.subject_code
+WHERE s.abbreviation = 'STAT'
+"
+
+dados_prof <- dbGetQuery(conn, query_gpa_prof)
+```
+
+##### 3.2
+```{r}
+cols_notas <- c("a_count", "ab_count", "b_count", "bc_count", "c_count", "d_count", "f_count")
+
+dados_prof[cols_notas] <- lapply(dados_prof[cols_notas], as.numeric)
+
+str(dados_prof)   # confirme que agora aparece "num" em vez de "chr"
+```
+
+##### 3.3
+```{r}
+pesos <- c(a = 4, ab = 3.5, b = 3, bc = 2.5, c = 2, d = 1, f = 0)
+
+dados_prof$pontos <- dados_prof$a_count  * pesos["a"]  +
+                      dados_prof$ab_count * pesos["ab"] +
+                      dados_prof$b_count  * pesos["b"]  +
+                      dados_prof$bc_count * pesos["bc"] +
+                      dados_prof$c_count  * pesos["c"]  +
+                      dados_prof$d_count  * pesos["d"]  +
+                      dados_prof$f_count  * pesos["f"]
+
+dados_prof$alunos <- dados_prof$a_count + dados_prof$ab_count + dados_prof$b_count +
+                      dados_prof$bc_count + dados_prof$c_count + dados_prof$d_count +
+                      dados_prof$f_count
+
+agg_prof <- aggregate(cbind(pontos, alunos) ~ instructor_name, data = dados_prof, sum)
+agg_prof$gpa <- agg_prof$pontos / agg_prof$alunos
+agg_prof <- agg_prof[order(agg_prof$gpa), ]
+
+head(agg_prof, 1)   
+tail(agg_prof, 1)   
+```
+
+#### **ITEM 4**
+##### 4.1
+```{r}
+query_gpa_curso <- "
+SELECT c.uuid AS course_uuid, c.name AS course_name,
+       gd.a_count, gd.ab_count, gd.b_count, gd.bc_count,
+       gd.c_count, gd.d_count, gd.f_count
+FROM grade_distributions gd
+INNER JOIN course_offerings co    ON co.uuid = gd.course_offering_uuid
+INNER JOIN courses c              ON c.uuid = co.course_uuid
+INNER JOIN subject_memberships sm ON sm.course_offering_uuid = co.uuid
+INNER JOIN subjects s             ON s.code = sm.subject_code
+WHERE s.abbreviation = 'STAT'
+"
+
+dados_curso <- dbGetQuery(conn, query_gpa_curso)
+```
+
+##### 4.2
+```{r}
+dados_curso[cols_notas] <- lapply(dados_curso[cols_notas], as.numeric)
+```
+
+##### 4.3
+```{r}
+dados_curso$pontos <- dados_curso$a_count  * pesos["a"]  +
+                       dados_curso$ab_count * pesos["ab"] +
+                       dados_curso$b_count  * pesos["b"]  +
+                       dados_curso$bc_count * pesos["bc"] +
+                       dados_curso$c_count  * pesos["c"]  +
+                       dados_curso$d_count  * pesos["d"]  +
+                       dados_curso$f_count  * pesos["f"]
+
+dados_curso$alunos <- dados_curso$a_count + dados_curso$ab_count + dados_curso$b_count +
+                       dados_curso$bc_count + dados_curso$c_count + dados_curso$d_count +
+                       dados_curso$f_count
+
+agg_curso <- aggregate(cbind(pontos, alunos) ~ course_name, data = dados_curso, sum)
+agg_curso$gpa <- agg_curso$pontos / agg_curso$alunos
+agg_curso <- agg_curso[order(agg_curso$gpa), ]
+
+head(agg_curso, 1)   
+tail(agg_curso, 1)   
+```
+
+#### **ITEM 5**
+```{r}
+dbDisconnect(conn)
+```
+
