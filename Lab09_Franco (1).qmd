@@ -1,0 +1,166 @@
+---
+title: "Lab09"
+author: "Heloisa Franco Gomes - 187932"
+format:
+  html:
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Configuração
+
+```{python}
+import numpy as np
+import pandas as pd
+from plotnine import *
+from plotnine.data import diamonds
+```
+
+## Questão 1
+
+```{python}
+print(diamonds.shape)
+diamonds.head()
+```
+
+```{python}
+diamonds.info()
+```
+
+```{python}
+diamonds["cut"] = pd.Categorical(diamonds["cut"],
+    categories=["Fair","Good","Very Good","Premium","Ideal"], ordered=True)
+diamonds["color"] = pd.Categorical(diamonds["color"],
+    categories=["D","E","F","G","H","I","J"], ordered=True)
+diamonds["clarity"] = pd.Categorical(diamonds["clarity"],
+    categories=["I1","SI2","SI1","VS2","VS1","VVS2","VVS1","IF"], ordered=True)
+```
+
+### Exploração com SQL via DuckDB
+
+```{python}
+import duckdb
+con = duckdb.connect()
+con.register("diamonds", diamonds)
+con.execute("""
+    SELECT cut,
+           COUNT(*)             AS n,
+           ROUND(AVG(price), 0) AS preco_medio,
+           ROUND(AVG(carat), 2) AS carat_medio
+    FROM diamonds
+    GROUP BY cut
+    ORDER BY preco_medio DESC
+""").df()
+```
+
+## Questão 2
+
+Primeiro, um gráfico simples:
+
+```{python}
+p_base = ggplot(diamonds, aes("carat", "price")) + geom_point()
+p_base
+```
+
+Gráfico melhorado:
+
+```{python}
+p2 = (
+    ggplot(diamonds, aes("carat", "price"))
+    + geom_point(alpha=0.1, size=0.8)
+    + geom_smooth(method="lm", color="red")
+    + scale_x_log10()
+    + scale_y_log10()
+    + labs(title="Relação entre peso e preço dos diamantes",
+           x="Peso (quilates, escala log)",
+           y="Preço (USD, escala log)")
+    + theme_minimal()
+)
+p2
+```
+
+**Resposta:** Para produzir um gráfico de boa qualidade, tomei as seguintes ações: (i) usei um gráfico de dispersão, adequado para duas variáveis numéricas; (ii) apliquei transparência e reduzi o tamanho dos pontos para mitigar o *overplotting*, já que são mais de 53 mil observações; (iii) usei escala logarítmica nos dois eixos, pois na escala original a relação é curva e a variabilidade do preço cresce com o peso; (iv) adicionei uma reta de tendência; (v) incluí título, rótulos com unidades e tema limpo. O principal achado é uma associação positiva e forte: diamantes mais pesados são mais caros. A relação é não linear na escala original, mas aproximadamente linear em log-log, sugerindo uma relação do tipo potência.
+
+## Questão 3
+
+```{python}
+#| fig-width: 14
+#| fig-height: 4
+p3 = (
+    ggplot(diamonds, aes("carat", "price"))
+    + geom_point(alpha=0.1, size=0.6)
+    + geom_smooth(method="lm", color="red")
+    + facet_wrap("~cut", nrow=1)
+    + scale_x_log10()
+    + scale_y_log10()
+    + labs(title="Relação peso x preço por tipo de corte",
+           x="Peso (quilates, escala log)", y="Preço (USD, escala log)")
+    + theme_minimal()
+    + theme(figure_size=(14, 4))
+)
+p3
+```
+
+```{python}
+p3b = (
+    ggplot(diamonds, aes("carat", "price", color="cut"))
+    + geom_smooth(method="lm", se=False)
+    + scale_x_log10()
+    + scale_y_log10()
+    + labs(title="Tendência peso x preço por corte",
+           x="Peso (quilates, escala log)", y="Preço (USD, escala log)",
+           color="Corte")
+    + theme_minimal()
+)
+p3b
+```
+
+```{python}
+d = diamonds.assign(lcarat=np.log(diamonds["carat"]),
+                    lprice=np.log(diamonds["price"]))
+d.groupby("cut", observed=True).apply(
+    lambda g: g["lcarat"].corr(g["lprice"]))
+```
+
+**Resposta:** Sim, o padrão geral se repete em todos os cortes: há associação positiva e forte entre peso e preço, com relação aproximadamente linear em log-log. A correlação entre log(peso) e log(preço) é alta em todos os cortes (≥ 0,96), com exceção de *Fair* (0,91), que tem menos observações e maior dispersão. Além disso, o preço médio não segue a ordem de qualidade do corte: *Ideal* tem o menor preço médio (US$ 3.458) e peso médio de 0,70 ct, enquanto *Fair* tem 1,05 ct. Isso mostra que o peso domina o preço e que o corte tem efeito secundário.
+
+## Questão 4
+
+Filtragem: só traço reta de tendência em combinações com pelo menos 10 diamantes.
+
+```{python}
+d4 = diamonds.copy()
+d4["n_grupo"] = d4.groupby(["cut", "color", "clarity"],
+                           observed=True)["price"].transform("size")
+d4_ok = d4[d4["n_grupo"] >= 10]
+
+print("Combinações possíveis:", 5 * 7 * 8)
+print("Combinações com >= 10 diamantes:",
+      d4_ok.groupby(["cut", "color", "clarity"], observed=True).ngroups)
+```
+
+```{python}
+#| fig-width: 18
+#| fig-height: 14
+p4 = (
+    ggplot(d4, aes("carat", "price", color="color"))
+    + geom_point(alpha=0.15, size=0.4)
+    + geom_smooth(data=d4_ok, method="lm", se=False, size=0.8)
+    + facet_grid("clarity ~ cut")
+    + scale_x_log10()
+    + scale_y_log10()
+    + labs(title="Preço x peso por corte (colunas), clareza (linhas) e cor (cores)",
+           x="Peso (quilates, escala log)", y="Preço (USD, escala log)",
+           color="Cor")
+    + theme_minimal()
+    + theme(figure_size=(18, 14))
+)
+p4
+```
+
+**Dificuldades:** (i) são 5 × 7 × 8 = 280 combinações de corte, cor e clareza, o que impede mostrar tudo em um único painel; foi necessário usar facetas para duas variáveis (corte e clareza) e cor para a terceira; (ii) mesmo assim, o gráfico fica denso, com 40 painéis; (iii) o *overplotting* é severo, exigindo transparência e escala logarítmica; (iv) muitas combinações têm poucos diamantes (algumas apenas um), o que torna as retas instáveis, então tracei retas apenas para combinações com pelo menos 10 observações; (v) diferenciar 7 níveis de cor numa paleta é difícil, e comparar painéis distantes exige esforço visual.
+
+**Conclusão:** A relação entre preço e peso **não é exatamente a mesma** em todas as configurações. A forma geral se mantém (positiva e aproximadamente linear em log-log), mas o nível das retas muda: para o mesmo peso, diamantes com melhor clareza e melhor cor tendem a custar mais. O peso é o fator dominante, e clareza e cor deslocam o nível do preço.
